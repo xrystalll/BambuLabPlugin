@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@eniac/flexdesigner": "^1.0.7",
-    "@napi-rs/canvas": "^1.0.9",
+    "canvas": "^3.2.3",
     "mqtt": "^5.16.0"
   }
 }

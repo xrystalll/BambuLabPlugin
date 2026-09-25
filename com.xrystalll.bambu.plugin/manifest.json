@@ -1,7 +1,7 @@
 {
     "name": "Bambu",
     "uuid": "com.xrystalll.bambu",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "author": "xrystalll",
     "entry": "backend/plugin.cjs",
     "description": "Flexbar plugin for monitoring the status of Bambu Lab printers",

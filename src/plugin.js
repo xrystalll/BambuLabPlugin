@@ -1,33 +1,32 @@
-const { plugin, logger, pluginPath, resourcesPath } = require("@eniac/flexdesigner");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
-const mqtt = require("mqtt");
-const path = require("path");
-const fs = require("fs");
+import { plugin, logger, resourcesPath } from "@eniac/flexdesigner";
+import { createCanvas, loadImage } from "canvas";
+import { connect } from "mqtt";
+import { join, resolve } from "path";
+import { existsSync, readFileSync } from "fs";
 
 let device = {
     serialNumber: "",
     keys: []
 };
-
 function registerDevice(serialNumber, keys) {
     device.serialNumber = serialNumber;
     device.keys = keys || [];
 }
 
-const configPath = path.join(pluginPath, "config.json");
+const configPath = resolve(__dirname, "..", "config.json");
 let userConfig = {
     PRINTER_IP: "",
     ACCESS_CODE: "",
     SERIAL_NUMBER: ""
 };
 
-let mqttClient = null; 
+let mqttClient = null;
 let isAssetsLoaded = false;
 
 function loadUserConfiguration() {
     try {
-        if (fs.existsSync(configPath)) {
-            const fileData = fs.readFileSync(configPath, "utf8");
+        if (existsSync(configPath)) {
+            const fileData = readFileSync(configPath, "utf8");
             const parsed = JSON.parse(fileData);
 
             userConfig.PRINTER_IP = parsed.printerIp || parsed.PRINTER_IP || "";
@@ -35,7 +34,7 @@ function loadUserConfiguration() {
             userConfig.SERIAL_NUMBER = parsed.serialNumber || parsed.SERIAL_NUMBER || "";
         }
     } catch (e) {
-        logger.error("=== Error reading config ===", e);
+        logger.error("Error reading config:", e);
     }
 }
 
@@ -66,7 +65,7 @@ const ctx = canvas.getContext("2d");
 
 function stopMqtt() {
     if (mqttClient) {
-        logger.info("=== Disconnecting from Bambu Lab MQTT... ===");
+        logger.info("Disconnecting from Bambu Lab MQTT...");
         mqttClient.end(true);
         mqttClient = null;
     }
@@ -77,12 +76,16 @@ function startMqtt() {
 
     if (!userConfig.PRINTER_IP || !userConfig.ACCESS_CODE || !userConfig.SERIAL_NUMBER) {
         logger.error("Fill config fields or check plugin settings!");
+
+        if (device.serialNumber && device.serialNumber.length > 0) {
+            plugin.showFlexbarSnackbarMessage(device.serialNumber, "Fill config fields!", "error", "bell", 4000);
+        }
         return;
     }
 
-    logger.info(`=== Connecting to MQTT at ${userConfig.PRINTER_IP}... ===`);
+    logger.info(`Connecting to MQTT at ${userConfig.PRINTER_IP}...`);
 
-    mqttClient = mqtt.connect(`mqtts://${userConfig.PRINTER_IP}:8883`, {
+    mqttClient = connect(`mqtts://${userConfig.PRINTER_IP}:8883`, {
         username: "bblp",
         password: userConfig.ACCESS_CODE,
         rejectUnauthorized: false,
@@ -90,7 +93,7 @@ function startMqtt() {
     });
 
     mqttClient.on("connect", () => {
-        logger.info("=== Connected to Bambu Lab MQTT! ===");
+        logger.info("Connected to Bambu Lab MQTT!");
         mqttClient.subscribe(`device/${userConfig.SERIAL_NUMBER}/report`);
     });
 
@@ -111,7 +114,7 @@ function startMqtt() {
                 }
             }
         } catch (e) {
-            logger.error("=== Error parsing MQTT data:", e);
+            logger.error("Error parsing MQTT data:", e);
         }
     });
 
@@ -138,22 +141,38 @@ function checkWidgetVisibility() {
     stopMqtt();
 }
 
+async function safeLoadImage(path) {
+    try {
+        if (existsSync(path)) {
+            return await loadImage(path);
+        } else {
+            logger.error(`Image asset not found at path: ${path}`);
+            return null;
+        }
+    } catch (err) {
+        logger.error(`Failed to load image: ${path}`, err);
+        return null;
+    }
+}
+
 async function startPlugin() {
+    logger.debug("Plugin run");
+
     try {
         loadUserConfiguration();
 
-        const extruderPath = path.join(resourcesPath, "extruder.png");
-        const heatbedPath = path.join(resourcesPath, "heatbed.png");
-        const bambulogoPath = path.join(resourcesPath, "bambulab.png");
+        const extruderPath = resolve(join(resourcesPath, "extruder.png"));
+        const heatbedPath = resolve(join(resourcesPath, "heatbed.png"));
+        const bambulogoPath = resolve(join(resourcesPath, "bambulab.png"));
 
-        imgExtruder = await loadImage(extruderPath);
-        imgHeatBed = await loadImage(heatbedPath);
-        imgBambulab = await loadImage(bambulogoPath);
+        imgExtruder = await safeLoadImage(extruderPath);
+        imgHeatBed = await safeLoadImage(heatbedPath);
+        imgBambulab = await safeLoadImage(bambulogoPath);
+        
         isAssetsLoaded = true;
-
         checkWidgetVisibility();
     } catch (err) {
-        logger.error("=== CRITICAL: error ===");
+        logger.error("CRITICAL: error in startPlugin");
         logger.error(err);
     }
 }
@@ -179,6 +198,8 @@ function parseBambuData(print) {
 }
 
 function renderBambuWidget(serialNumber, key) {
+    if (!ctx || !canvas) return;
+
     const width = key.style?.width || 1000;
     const height = 60;
 
@@ -197,7 +218,7 @@ function renderBambuWidget(serialNumber, key) {
 
     // Logo
     drawStaticButton(ctx, padding, padding, btnH, btnH, "");
-    if (imgBambulab) {
+    if (imgBambulab && typeof imgBambulab === 'object') {
         ctx.drawImage(imgBambulab, 11, 11, icSize, icSize);
     }
 
@@ -239,23 +260,28 @@ function renderBambuWidget(serialNumber, key) {
     drawStaticButton(ctx, width - btnW * 2 - gap, padding, btnW, btnH, "     " + printerData.nozzleTemp + "°C");
     drawStaticButton(ctx, width - btnW, padding, btnW, btnH, "     " + printerData.bedTemp + "°C");
 
-    if (imgExtruder && imgHeatBed) {
+    if (imgExtruder && typeof imgExtruder === 'object') {
         ctx.drawImage(imgExtruder, width - btnW * 2 - gap + 8, height / 2 - icSize / 2, icSize, icSize);
+    }
+    if (imgHeatBed && typeof imgHeatBed === 'object') {
         ctx.drawImage(imgHeatBed, width - btnW + 8, height / 2 - icSize / 2, icSize, icSize);
     }
 
+    try {
+        const imageBuffer = canvas.toBuffer("image/png");
+        const base64Image = imageBuffer.toString("base64");
 
-    const imageBuffer = canvas.toBuffer("image/png");
-    const base64Image = imageBuffer.toString("base64");
+        key.style.showImage = true;
+        key.style.showIcon = false;
+        key.style.showTitle = false;
+        key.style.bgColor = "#000";
+        key.style.borderWidth = 0;
+        key.style.image = `data:image/png;base64,${base64Image}`;
 
-    key.style.showImage = true;
-    key.style.showIcon = false;
-    key.style.showTitle = false;
-    key.style.bgColor = "#000";
-    key.style.borderWidth = 0;
-    key.style.image = `data:image/png;base64,${base64Image}`;
-
-    plugin.draw(serialNumber, key, "draw");
+        plugin.draw(serialNumber, key, "draw");
+    } catch (encodeError) {
+        logger.error("Error encoding canvas to buffer:", encodeError);
+    }
 }
 
 function drawStaticButton(ctx, x, y, w, h, text) {
