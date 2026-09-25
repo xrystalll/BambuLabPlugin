@@ -28,8 +28,8 @@ Tested with P2S printer.
 ### Clone & Setup
 
 ```
-git clone .git
-cd bambu
+git clone https://github.com/xrystalll/BambuLabPlugin.git
+cd BambuLabPlugin
 npm install
 ```
 

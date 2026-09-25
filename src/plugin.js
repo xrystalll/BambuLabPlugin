@@ -1,5 +1,5 @@
 const { plugin, logger, pluginPath, resourcesPath } = require("@eniac/flexdesigner");
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage } = require("canvas");
 const mqtt = require("mqtt");
 const path = require("path");
 const fs = require("fs");
@@ -184,7 +184,7 @@ function renderBambuWidget(serialNumber, key) {
     const height = 60;
     ctx.clearRect(0, 0, width, height);
 
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
     drawStaticButton(ctx, padding, padding, btnH, btnH, "");
@@ -233,17 +233,17 @@ function renderBambuWidget(serialNumber, key) {
         ctx.drawImage(imgHeatBed, firstBtn + btnW + gap + 8, height / 2 - icSize / 2, icSize, icSize);
     }
 
-    const imageBuffer = canvas.toBuffer('image/png');
-    const base64Image = imageBuffer.toString('base64');
+    const imageBuffer = canvas.toBuffer("image/png");
+    const base64Image = imageBuffer.toString("base64");
 
     key.style.showImage = true;
     key.style.showIcon = false;
     key.style.showTitle = false;
-    key.style.bgColor = "#000000";
+    key.style.bgColor = "#000";
     key.style.borderWidth = 0;
     key.style.image = `data:image/png;base64,${base64Image}`;
 
-    plugin.draw(serialNumber, key, 'draw');
+    plugin.draw(serialNumber, key, "draw");
 }
 
 function drawStaticButton(ctx, x, y, w, h, text) {
