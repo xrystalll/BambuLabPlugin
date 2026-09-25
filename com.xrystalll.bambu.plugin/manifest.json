@@ -1,7 +1,7 @@
 {
     "name": "Bambu",
     "uuid": "com.xrystalll.bambu",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "xrystalll",
     "entry": "backend/plugin.cjs",
     "description": "Flexbar plugin for monitoring the status of Bambu Lab printers",
@@ -48,20 +48,19 @@
                   ]
               },
               "style": {
-                  "bgColor": "#000000",
+                  "bgColor": "#000",
                   "showTitle": true,
                   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACoAAAAqCAYAAADFw8lbAAABJmlDQ1BBZG9iZSBSR0IgKDE5OTgpAAAoz2NgYDJwdHFyZRJgYMjNKykKcndSiIiMUmA/z8DGwMwABonJxQWOAQE+IHZefl4qAwb4do2BEURf1gWZxUAa4EouKCoB0n+A2CgltTiZgYHRAMjOLi8pAIozzgGyRZKywewNIHZRSJAzkH0EyOZLh7CvgNhJEPYTELsI6Akg+wtIfTqYzcQBNgfClgGxS1IrQPYyOOcXVBZlpmeUKBhaWloqOKbkJ6UqBFcWl6TmFit45iXnFxXkFyWWpKYA1ULcBwaCEIWgENMAarTQZKAyAMUDhPU5EBy+jGJnEGIIkFxaVAZlMjIZE+YjzJgjwcDgv5SBgeUPQsykl4FhgQ4DA/9UhJiaIQODgD4Dw745AMDGT/0ZOjZcAAAACXBIWXMAATr2AAE69gE6sVc6AAAE7WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNi4wLWMwMDIgNzkuMTY0NDg4LCAyMDIwLzA3LzEwLTIyOjA2OjUzICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjIuMCAoV2luZG93cykiIHhtcDpDcmVhdGVEYXRlPSIyMDI2LTA5LTI1VDAyOjI2OjEzKzAzOjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyNi0wOS0yNVQwMjoyNzozNSswMzowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyNi0wOS0yNVQwMjoyNzozNSswMzowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6MzhmOTgxZTItMzc3Yi04MTQwLWE5MjctMDUzZjMzZWJiYjllIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjM4Zjk4MWUyLTM3N2ItODE0MC1hOTI3LTA1M2YzM2ViYmI5ZSIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjM4Zjk4MWUyLTM3N2ItODE0MC1hOTI3LTA1M2YzM2ViYmI5ZSI+IDx4bXBNTTpIaXN0b3J5PiA8cmRmOlNlcT4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNyZWF0ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6MzhmOTgxZTItMzc3Yi04MTQwLWE5MjctMDUzZjMzZWJiYjllIiBzdEV2dDp3aGVuPSIyMDI2LTA5LTI1VDAyOjI2OjEzKzAzOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjIuMCAoV2luZG93cykiLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+0lzcTgAAAZpJREFUWMPt2U0oBGEcx/FZsl4OSiKlpMhBDpSDq5ODJDcXOTjITa5KOTg5KQ4Ojm4cJBflIiWWVkl5KS/rdUW2KIUa36lHPT3tHuYxO57Rs/W57M78n1/bPM/znxnHdV0niwM8a0ggLmpsaNY4zJbJyRH0xtX7nEtBk5o17v0EvdQc5FQKmtCscW2D2qA2aISCntmgNmiEgh6ZHrRY1OjBGj5MDVqi1GrFNC5M/EcL0KTULMcAVvBqyjUawx52MIRKpX4DxnFswmTal76/xSzalXFK0YtlvItjH01Ynr5E5z+ICmXMZkxhM4ygdz7W0ZSYZG3K2EX5DvqAORT6XPA/sY5+VOfIE0jQLQyjSqmhszOlMRNkUO+Cn0eHcl5MLE2/2UJfggi6jRHUKMfXYwKrYiaHttenpBOfsIBO5RjvWuzCIjLSIPGwg3r35WOoVX6rw6iyTv5Z99QizV5PGfrE9pcxqc370YhJnJjaj3ZjCW+mN87pqHT4V/aeyQb9p0Htsycb1AaNatDIvL5JiobZD+9l1q6bpxdi3wAdG1KR7NFvAAAAAElFTkSuQmCC",
                   "iconSize": 28,
                   "iconPos": {
-                    "X": 12,
+                    "X": 6,
                     "Y": 52
                   },
                   "titlePos": {
-                    "X": 24,
-                    "Y": 54
+                    "X": 18,
+                    "Y": 55
                   },
-                  "width": 1000,
-                  "flags": ["disable-bg", "disable-fg", "disable-icon-sel", "disable-layout-sel"]
+                  "width": 1000
               },
               "data": {}
           }
@@ -75,6 +74,7 @@
                 "Tip": "Monitoring Bambu Lab printing status",
                 "UI": {
                     "Title": "Enter printer data",
+                    "Save": "Save",
                     "SaveSuccess": "Config saved",
                     "IP": "Printer IP",
                     "AccessCode": "Access code",

@@ -1,5 +1,5 @@
 const { plugin, logger, pluginPath, resourcesPath } = require("@eniac/flexdesigner");
-const { createCanvas, loadImage } = require("canvas");
+const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const mqtt = require("mqtt");
 const path = require("path");
 const fs = require("fs");
@@ -52,8 +52,7 @@ let printerData = {
 };
 
 const padding = 3;
-const gap = 12;
-const firstBtn = 682;
+const gap = 14;
 const btnW = 126;
 const btnH = 54;
 const icSize = 38;
@@ -127,7 +126,7 @@ function checkWidgetVisibility() {
     if (!isAssetsLoaded) return;
 
     const hasActiveWidget = device.keys && Array.isArray(device.keys) && device.keys.length > 0;
-    
+
     if (hasActiveWidget) {
         const key = device.keys[0];
         if (key && key.cid === "com.xrystalll.bambu.monitor") {
@@ -182,56 +181,69 @@ function parseBambuData(print) {
 function renderBambuWidget(serialNumber, key) {
     const width = key.style?.width || 1000;
     const height = 60;
-    ctx.clearRect(0, 0, width, height);
 
+    const pbX = btnH + gap;
+    let centerContainerMaxWidth = width - pbX - btnW * 2 - gap * 2;
+    if (centerContainerMaxWidth > 1200) {
+        centerContainerMaxWidth = 1200;
+    }
+    const pbHeight = 6;
+    const pbY = height / 2 - pbHeight / 2;
+    const corner = 3;
+
+    ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
+    // Logo
     drawStaticButton(ctx, padding, padding, btnH, btnH, "");
     if (imgBambulab) {
         ctx.drawImage(imgBambulab, 11, 11, icSize, icSize);
     }
 
+    // Gcode file name
     ctx.font = "18px Arial";
     ctx.fillStyle = "#DFDFDF";
     ctx.textAlign = "left";
-    const fileName = truncateText(ctx, printerData.file, 600);
+    const fileName = truncateText(ctx, printerData.file, centerContainerMaxWidth);
     ctx.fillText(fileName, btnH + gap, 18);
 
-    const pbX = btnH + gap;
-    const pbHeight = 6;
-    const pbY = height / 2 - pbHeight / 2;
-    const pbWidth = 600;
-    const corner = 3;
-
+    // Progress bar bg
     ctx.fillStyle = "#2a2a30";
-    fillRoundRect(ctx, pbX, pbY, pbWidth, pbHeight, corner);
+    fillRoundRect(ctx, pbX, pbY, centerContainerMaxWidth, pbHeight, corner);
 
-    const fillWidth = (printerData.progress / 100) * pbWidth;
+    // Progress bar fill
+    const fillWidth = (printerData.progress / 100) * centerContainerMaxWidth;
     ctx.fillStyle = "#00B700";
     if (fillWidth > 0) {
         fillRoundRect(ctx, pbX, pbY, fillWidth, pbHeight, corner);
     }
 
+    // Progress count
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 20px Arial";
     ctx.fillText(`${printerData.progress}%`, pbX, height - padding * 2);
 
+    // Layers
     ctx.fillStyle = "#ADADAD";
-    ctx.font = "14px Arial";
-    ctx.fillText(`Layer: ${printerData.layer} / ${printerData.totalLayers}`, pbX + btnH + gap, height - padding * 2 - 2);
+    ctx.font = "15px Arial";
+    ctx.fillText(`Layer: ${printerData.layer} / ${printerData.totalLayers}`, pbX + btnH + gap, height - padding * 2 - 1);
 
+    // Time left
     ctx.fillStyle = "#ADADAD";
+    ctx.font = "15px Arial";
     ctx.textAlign = "right";
-    ctx.fillText(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`, 600 + btnH + gap, height - padding * 2 - 2);
+    ctx.fillText(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`, centerContainerMaxWidth + btnH + gap, height - padding * 2 - 1);
 
-    drawStaticButton(ctx, firstBtn, padding, btnW, btnH, "     " + printerData.nozzleTemp + "°C");
-    drawStaticButton(ctx, firstBtn + btnW + gap, padding, btnW, btnH, "     " + printerData.bedTemp + "°C");
+    // Temp
+    drawStaticButton(ctx, width - btnW * 2 - gap, padding, btnW, btnH, "     " + printerData.nozzleTemp + "°C");
+    drawStaticButton(ctx, width - btnW, padding, btnW, btnH, "     " + printerData.bedTemp + "°C");
 
     if (imgExtruder && imgHeatBed) {
-        ctx.drawImage(imgExtruder, firstBtn + 8, height / 2 - icSize / 2, icSize, icSize);
-        ctx.drawImage(imgHeatBed, firstBtn + btnW + gap + 8, height / 2 - icSize / 2, icSize, icSize);
+        ctx.drawImage(imgExtruder, width - btnW * 2 - gap + 8, height / 2 - icSize / 2, icSize, icSize);
+        ctx.drawImage(imgHeatBed, width - btnW + 8, height / 2 - icSize / 2, icSize, icSize);
     }
+
 
     const imageBuffer = canvas.toBuffer("image/png");
     const base64Image = imageBuffer.toString("base64");
@@ -250,7 +262,7 @@ function drawStaticButton(ctx, x, y, w, h, text) {
     ctx.fillStyle = "#212121";
     fillRoundRect(ctx, x, y, w, h, 8);
     ctx.fillStyle = "#FFF";
-    ctx.font = "20px Arial";
+    ctx.font = "22px Arial";
     ctx.textAlign = "center";
     const trimText = truncateText(ctx, text, w);
     ctx.fillText(trimText, x + (w / 2), h - 20 + padding);

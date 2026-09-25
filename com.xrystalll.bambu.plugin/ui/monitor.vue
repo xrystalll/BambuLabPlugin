@@ -20,8 +20,9 @@
     </v-card-text>
     <v-card-actions>
       <v-spacer></v-spacer>
-      <v-btn variant="text" icon @click="saveConfig">
+      <v-btn variant="text" @click="saveConfig">
         <v-icon>mdi-check-circle-outline</v-icon>
+        <p v-text="$t('Designer.UI.Save')"></p>
       </v-btn>
     </v-card-actions>
   </v-container>
