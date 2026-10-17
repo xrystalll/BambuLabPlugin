@@ -29,9 +29,9 @@ function loadUserConfiguration() {
             const fileData = readFileSync(configPath, "utf8");
             const parsed = JSON.parse(fileData);
 
-            userConfig.PRINTER_IP = parsed.printerIp || parsed.PRINTER_IP || "";
-            userConfig.ACCESS_CODE = parsed.accessCode || parsed.ACCESS_CODE || "";
-            userConfig.SERIAL_NUMBER = parsed.serialNumber || parsed.SERIAL_NUMBER || "";
+            userConfig.PRINTER_IP = parsed.printerIp || "";
+            userConfig.ACCESS_CODE = parsed.accessCode || "";
+            userConfig.SERIAL_NUMBER = parsed.serialNumber || "";
         }
     } catch (e) {
         logger.error("Error reading config:", e);
@@ -41,6 +41,7 @@ function loadUserConfiguration() {
 // Local printer state
 let printerData = {
     file: "No file",
+    status: "Idle",
     layer: 0,
     totalLayers: 0,
     nozzleTemp: 0,
@@ -195,6 +196,110 @@ function parseBambuData(print) {
         const end = new Date(now.getTime() + minutesTotal * 60000);
         printerData.endTime = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
     }
+
+    if (print.stg_cur !== undefined) {
+        switch (print.stg_cur) {
+            case -2:
+                printerData.status = "Offline";
+            case -1:
+            case 255:
+                printerData.status = "Idle";
+                break;
+            case 0:
+                printerData.status = "Printing";
+                break;
+            case 1:
+                printerData.status = "Auto bed leveling";
+                break;
+            case 2:
+                printerData.status = "Heatbed preheating";
+                break;
+            case 3:
+                printerData.status = "Vibration compensation";
+                break;
+            case 4:
+                printerData.status = "Changing filament";
+                break;
+            case 5:
+                printerData.status = "Pause in G-code";
+                break;
+            case 6:
+                printerData.status = "Paused due to filament runout";
+                break;
+            case 7:
+                printerData.status = "Heating hotend";
+                break;
+            case 8:
+                printerData.status = "Calibrating dynamic flow";
+                break;
+            case 9:
+                printerData.status = "Scanning bed surface";
+                break;
+            case 10:
+                printerData.status = "Inspecting first layer";
+                break;
+            case 11:
+                printerData.status = "Identify build plate";
+                break;
+            case 13:
+                printerData.status = "Homing toolhead";
+                break;
+            case 14:
+                printerData.status = "Cleaning nozzle tip";
+                break;
+            case 15:
+                printerData.status = "Сhecking extruder temperature";
+                break;
+            case 16:
+                printerData.status = "Printing was paused by the user";
+                break;
+            case 17:
+                printerData.status = "Pause of front cover falling";
+                break;
+            case 18:
+                printerData.status = "Calibrating micro lidar";
+                break;
+            case 19:
+                printerData.status = "Calibrating extrusion flow";
+                break;
+            case 20:
+                printerData.status = "Paused due to nozzle temperature malfunction";
+                break;
+            case 21:
+                printerData.status = "Paused due to heat bed temperature malfunction";
+                break;
+            case 22:
+                printerData.status = "Paused. Front cover falling";
+                break;
+            case 23:
+                printerData.status = "Paused. HMS error";
+                break;
+            case 24:
+                printerData.status = "Paused. Filament tangle";
+                break;
+            case 25:
+                printerData.status = "Paused. Nozzle clogged";
+                break;
+            case 26:
+                printerData.status = "Paused. Cut filament failed";
+                break;
+            case 36:
+                printerData.status = "Fallen toolhead / collision detect";
+                break;
+            case 37:
+                printerData.status = "Filament hub overload";
+                break;
+            case 51:
+                printerData.status = "Printing calibration lines";
+                break;
+            case 74:
+                printerData.status = "Preparing";
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 function renderBambuWidget(serialNumber, key) {
@@ -222,39 +327,54 @@ function renderBambuWidget(serialNumber, key) {
         ctx.drawImage(imgBambulab, 11, 11, icSize, icSize);
     }
 
-    // Gcode file name
-    ctx.font = "18px Arial";
-    ctx.fillStyle = "#DFDFDF";
-    ctx.textAlign = "left";
-    const fileName = truncateText(ctx, printerData.file, centerContainerMaxWidth);
-    ctx.fillText(fileName, btnH + gap, 18);
+    if (printerData.status === "Idle") {
+        //Status
+        ctx.font = "24px Tahoma";
+        ctx.fillStyle = "#FFF";
+        ctx.textAlign = "left";
+        const statusStr = truncateText(ctx, printerData.status, centerContainerMaxWidth);
+        ctx.fillText(statusStr, btnH + gap * 2, height / 2 + 20 / 2);
+    } else {
+        let statusText = printerData.status;
 
-    // Progress bar bg
-    ctx.fillStyle = "#2a2a30";
-    fillRoundRect(ctx, pbX, pbY, centerContainerMaxWidth, pbHeight, corner);
+        if (printerData.status === "Printing") {
+            statusText = `${printerData.status}: ${printerData.file}`
+        }
 
-    // Progress bar fill
-    const fillWidth = (printerData.progress / 100) * centerContainerMaxWidth;
-    ctx.fillStyle = "#00B700";
-    if (fillWidth > 0) {
-        fillRoundRect(ctx, pbX, pbY, fillWidth, pbHeight, corner);
+        //Status
+        ctx.font = "18px Tahoma";
+        ctx.fillStyle = "#DFDFDF";
+        ctx.textAlign = "left";
+        const statusStr = truncateText(ctx, statusText, centerContainerMaxWidth);
+        ctx.fillText(statusStr, btnH + gap, 18);
+
+        // Progress bar bg
+        ctx.fillStyle = "#2a2a30";
+        fillRoundRect(ctx, pbX, pbY, centerContainerMaxWidth, pbHeight, corner);
+
+        // Progress bar fill
+        const fillWidth = (printerData.progress / 100) * centerContainerMaxWidth;
+        ctx.fillStyle = "#00B700";
+        if (fillWidth > 0) {
+            fillRoundRect(ctx, pbX, pbY, fillWidth, pbHeight, corner);
+        }
+
+        // Progress count
+        ctx.fillStyle = "#FFF";
+        ctx.font = "bold 20px Arial";
+        ctx.fillText(`${printerData.progress}%`, pbX, height - padding * 2);
+
+        // Layers
+        ctx.fillStyle = "#ADADAD";
+        ctx.font = "15px Arial";
+        ctx.fillText(`Layer: ${printerData.layer} / ${printerData.totalLayers}`, pbX + btnH + gap, height - padding * 2 - 1);
+
+        // Time left
+        ctx.fillStyle = "#ADADAD";
+        ctx.font = "15px Arial";
+        ctx.textAlign = "right";
+        ctx.fillText(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`, centerContainerMaxWidth + btnH + gap, height - padding * 2 - 1);
     }
-
-    // Progress count
-    ctx.fillStyle = "#FFF";
-    ctx.font = "bold 20px Arial";
-    ctx.fillText(`${printerData.progress}%`, pbX, height - padding * 2);
-
-    // Layers
-    ctx.fillStyle = "#ADADAD";
-    ctx.font = "15px Arial";
-    ctx.fillText(`Layer: ${printerData.layer} / ${printerData.totalLayers}`, pbX + btnH + gap, height - padding * 2 - 1);
-
-    // Time left
-    ctx.fillStyle = "#ADADAD";
-    ctx.font = "15px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`, centerContainerMaxWidth + btnH + gap, height - padding * 2 - 1);
 
     // Temp
     drawStaticButton(ctx, width - btnW * 2 - gap, padding, btnW, btnH, "     " + printerData.nozzleTemp + "°C");
