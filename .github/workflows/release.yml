@@ -41,7 +41,7 @@ jobs:
       - name: Verify archive contents
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [System.IO.Compression.ZipFile]::OpenRead("com.xrystalll.mediainfo.flexplugin")
+          $zip = [System.IO.Compression.ZipFile]::OpenRead("com.xrystalll.bambu.flexplugin")
           $zip.Entries | Where-Object { $_.FullName -like "*.node" } | Select-Object FullName
           $zip.Dispose()
 
