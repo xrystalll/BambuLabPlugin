@@ -47,7 +47,10 @@ const config = {
       }
     }
   ],
-  external: id => id.endsWith('.node')
+  external: [
+    'canvas',
+    /^node:/
+  ]
 };
 
 export default config;
