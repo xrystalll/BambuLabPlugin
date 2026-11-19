@@ -1,5 +1,4 @@
 import { plugin, logger, resourcesPath } from "@eniac/flexdesigner";
-import { createCanvas, loadImage } from "canvas";
 import { connect } from "mqtt";
 import { join, resolve } from "path";
 import { existsSync, readFileSync } from "fs";
@@ -8,6 +7,7 @@ let device = {
     serialNumber: "",
     keys: []
 };
+
 function registerDevice(serialNumber, keys) {
     device.serialNumber = serialNumber;
     device.keys = keys || [];
@@ -38,7 +38,6 @@ function loadUserConfiguration() {
     }
 }
 
-// Local printer state
 let printerData = {
     file: "No file",
     status: "Idle",
@@ -57,12 +56,9 @@ const btnW = 126;
 const btnH = 54;
 const icSize = 38;
 
-let imgExtruder = null;
-let imgHeatBed = null;
-let imgBambulab = null;
-
-const canvas = createCanvas(2170, 60);
-const ctx = canvas.getContext("2d");
+let imgExtruderBase64 = null;
+let imgHeatBedBase64 = null;
+let imgBambulabBase64 = null;
 
 function stopMqtt() {
     if (mqttClient) {
@@ -73,7 +69,7 @@ function stopMqtt() {
 }
 
 function startMqtt() {
-    if (mqttClient) return; 
+    if (mqttClient) return;
 
     if (!userConfig.PRINTER_IP || !userConfig.ACCESS_CODE || !userConfig.SERIAL_NUMBER) {
         logger.error("Fill config fields or check plugin settings!");
@@ -105,7 +101,7 @@ function startMqtt() {
                 parseBambuData(data.print);
 
                 if (device.keys && Array.isArray(device.keys) && device.keys.length > 0) {
-                    const key = device.keys[0];
+                    const key = device.keys;
 
                     if (key && key.cid === "com.xrystalll.bambu.monitor") {
                         renderBambuWidget(device.serialNumber, key);
@@ -132,9 +128,10 @@ function checkWidgetVisibility() {
     const hasActiveWidget = device.keys && Array.isArray(device.keys) && device.keys.length > 0;
 
     if (hasActiveWidget) {
-        const key = device.keys[0];
+        const key = device.keys;
         if (key && key.cid === "com.xrystalll.bambu.monitor") {
             startMqtt();
+            renderBambuWidget(device.serialNumber, key);
             return;
         }
     }
@@ -142,16 +139,17 @@ function checkWidgetVisibility() {
     stopMqtt();
 }
 
-async function safeLoadImage(path) {
+function safeLoadImageBase64(filePath) {
     try {
-        if (existsSync(path)) {
-            return await loadImage(path);
+        if (existsSync(filePath)) {
+            const buffer = readFileSync(filePath);
+            return `data:image/png;base64,${buffer.toString("base64")}`;
         } else {
-            logger.error(`Image asset not found at path: ${path}`);
+            logger.error(`Image asset not found at path: ${filePath}`);
             return null;
         }
     } catch (err) {
-        logger.error(`Failed to load image: ${path}`, err);
+        logger.error(`Failed to load image: ${filePath}`, err);
         return null;
     }
 }
@@ -166,10 +164,10 @@ async function startPlugin() {
         const heatbedPath = resolve(join(resourcesPath, "heatbed.png"));
         const bambulogoPath = resolve(join(resourcesPath, "bambulab.png"));
 
-        imgExtruder = await safeLoadImage(extruderPath);
-        imgHeatBed = await safeLoadImage(heatbedPath);
-        imgBambulab = await safeLoadImage(bambulogoPath);
-        
+        imgExtruderBase64 = safeLoadImageBase64(extruderPath);
+        imgHeatBedBase64 = safeLoadImageBase64(heatbedPath);
+        imgBambulabBase64 = safeLoadImageBase64(bambulogoPath);
+
         isAssetsLoaded = true;
         checkWidgetVisibility();
     } catch (err) {
@@ -201,6 +199,7 @@ function parseBambuData(print) {
         switch (print.stg_cur) {
             case -2:
                 printerData.status = "Offline";
+                break;
             case -1:
             case 255:
                 printerData.status = "Idle";
@@ -248,7 +247,7 @@ function parseBambuData(print) {
                 printerData.status = "Cleaning nozzle tip";
                 break;
             case 15:
-                printerData.status = "Сhecking extruder temperature";
+                printerData.status = "Checking extruder temperature";
                 break;
             case 16:
                 printerData.status = "Printing was paused by the user";
@@ -295,16 +294,32 @@ function parseBambuData(print) {
             case 74:
                 printerData.status = "Preparing";
                 break;
-
             default:
                 break;
         }
     }
 }
 
-function renderBambuWidget(serialNumber, key) {
-    if (!ctx || !canvas) return;
+function escapeXml(unsafe) {
+    if (!unsafe) return "";
+    return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+}
 
+function truncateTextApprox(text, maxWidth, fontSize) {
+    if (!text) return "";
+    const avgCharWidth = fontSize * 0.55;
+    const maxChars = Math.floor(maxWidth / avgCharWidth);
+    if (text.length <= maxChars) return text;
+    if (maxChars <= 3) return "...";
+    return text.slice(0, maxChars - 3) + "...";
+}
+
+function renderBambuWidget(serialNumber, key) {
     const width = key.style?.width || 1000;
     const height = 60;
 
@@ -317,129 +332,77 @@ function renderBambuWidget(serialNumber, key) {
     const pbY = height / 2 - pbHeight / 2;
     const corner = 3;
 
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, width, height);
+    let svgParts = [];
 
-    // Logo
-    drawStaticButton(ctx, padding, padding, btnH, btnH, "");
-    if (imgBambulab && typeof imgBambulab === 'object') {
-        ctx.drawImage(imgBambulab, 11, 11, icSize, icSize);
+    svgParts.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#000000" />`);
+
+    svgParts.push(`<rect x="${padding}" y="${padding}" width="${btnH}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
+    if (imgBambulabBase64) {
+        svgParts.push(`<image href="${imgBambulabBase64}" x="11" y="11" width="${icSize}" height="${icSize}" />`);
     }
 
     if (printerData.status === "Idle") {
-        //Status
-        ctx.font = "24px Tahoma";
-        ctx.fillStyle = "#FFF";
-        ctx.textAlign = "left";
-        const statusStr = truncateText(ctx, printerData.status, centerContainerMaxWidth);
-        ctx.fillText(statusStr, btnH + gap * 2, height / 2 + 20 / 2);
+        const statusStr = escapeXml(truncateTextApprox(printerData.status, centerContainerMaxWidth, 24));
+        const textY = height / 2 + 8;
+        svgParts.push(`<text x="${btnH + gap * 2}" y="${textY}" font-family="Tahoma, sans-serif" font-size="24" fill="#FFFFFF" text-anchor="start">${statusStr}</text>`);
     } else {
         let statusText = printerData.status;
-
         if (printerData.status === "Printing") {
-            statusText = `${printerData.status}: ${printerData.file}`
+            statusText = `${printerData.status}: ${printerData.file}`;
         }
 
-        //Status
-        ctx.font = "18px Tahoma";
-        ctx.fillStyle = "#DFDFDF";
-        ctx.textAlign = "left";
-        const statusStr = truncateText(ctx, statusText, centerContainerMaxWidth);
-        ctx.fillText(statusStr, btnH + gap, 18);
+        const statusStr = escapeXml(truncateTextApprox(statusText, centerContainerMaxWidth, 18));
+        svgParts.push(`<text x="${btnH + gap}" y="19" font-family="Tahoma, sans-serif" font-size="18" fill="#DFDFDF" text-anchor="start">${statusStr}</text>`);
 
-        // Progress bar bg
-        ctx.fillStyle = "#2a2a30";
-        fillRoundRect(ctx, pbX, pbY, centerContainerMaxWidth, pbHeight, corner);
+        svgParts.push(`<rect x="${pbX}" y="${pbY}" width="${centerContainerMaxWidth}" height="${pbHeight}" rx="${corner}" ry="${corner}" fill="#2a2a30" />`);
 
-        // Progress bar fill
-        const fillWidth = (printerData.progress / 100) * centerContainerMaxWidth;
-        ctx.fillStyle = "#00B700";
+        const fillWidth = Math.max(0, Math.min(centerContainerMaxWidth, (printerData.progress / 100) * centerContainerMaxWidth));
         if (fillWidth > 0) {
-            fillRoundRect(ctx, pbX, pbY, fillWidth, pbHeight, corner);
+            svgParts.push(`<rect x="${pbX}" y="${pbY}" width="${fillWidth}" height="${pbHeight}" rx="${corner}" ry="${corner}" fill="#00B700" />`);
         }
 
-        // Progress count
-        ctx.fillStyle = "#FFF";
-        ctx.font = "bold 20px Arial";
-        ctx.fillText(`${printerData.progress}%`, pbX, height - padding * 2);
+        const bottomY = height - padding * 2;
 
-        // Layers
-        ctx.fillStyle = "#ADADAD";
-        ctx.font = "15px Arial";
-        ctx.fillText(`Layer: ${printerData.layer} / ${printerData.totalLayers}`, pbX + btnH + gap, height - padding * 2 - 1);
+        svgParts.push(`<text x="${pbX}" y="${bottomY}" font-family="Arial, sans-serif" font-weight="bold" font-size="20" fill="#FFFFFF" text-anchor="start">${printerData.progress}%</text>`);
 
-        // Time left
-        ctx.fillStyle = "#ADADAD";
-        ctx.font = "15px Arial";
-        ctx.textAlign = "right";
-        ctx.fillText(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`, centerContainerMaxWidth + btnH + gap, height - padding * 2 - 1);
+        svgParts.push(`<text x="${pbX + btnH + gap}" y="${bottomY - 1}" font-family="Arial, sans-serif" font-size="15" fill="#ADADAD" text-anchor="start">Layer: ${printerData.layer} / ${printerData.totalLayers}</text>`);
+
+        const rightText = escapeXml(`Ends in: ${printerData.endTime} (${printerData.remainingTime})`);
+        svgParts.push(`<text x="${centerContainerMaxWidth + btnH + gap}" y="${bottomY - 1}" font-family="Arial, sans-serif" font-size="15" fill="#ADADAD" text-anchor="end">${rightText}</text>`);
     }
 
-    // Temp
-    drawStaticButton(ctx, width - btnW * 2 - gap, padding, btnW, btnH, "     " + printerData.nozzleTemp + "°C");
-    drawStaticButton(ctx, width - btnW, padding, btnW, btnH, "     " + printerData.bedTemp + "°C");
+    const nozzleBtnX = width - btnW * 2 - gap;
+    const bedBtnX = width - btnW;
+    const tempTextY = btnH - 20 + padding;
 
-    if (imgExtruder && typeof imgExtruder === 'object') {
-        ctx.drawImage(imgExtruder, width - btnW * 2 - gap + 8, height / 2 - icSize / 2, icSize, icSize);
+    svgParts.push(`<rect x="${nozzleBtnX}" y="${padding}" width="${btnW}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
+    if (imgExtruderBase64) {
+        svgParts.push(`<image href="${imgExtruderBase64}" x="${nozzleBtnX + 8}" y="${height / 2 - icSize / 2}" width="${icSize}" height="${icSize}" />`);
     }
-    if (imgHeatBed && typeof imgHeatBed === 'object') {
-        ctx.drawImage(imgHeatBed, width - btnW + 8, height / 2 - icSize / 2, icSize, icSize);
+    svgParts.push(`<text x="${nozzleBtnX + btnW / 2 + 16}" y="${tempTextY}" font-family="Arial, sans-serif" font-size="22" fill="#FFFFFF" text-anchor="middle">${printerData.nozzleTemp}°C</text>`);
+
+    svgParts.push(`<rect x="${bedBtnX}" y="${padding}" width="${btnW}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
+    if (imgHeatBedBase64) {
+        svgParts.push(`<image href="${imgHeatBedBase64}" x="${bedBtnX + 8}" y="${height / 2 - icSize / 2}" width="${icSize}" height="${icSize}" />`);
     }
+    svgParts.push(`<text x="${bedBtnX + btnW / 2 + 16}" y="${tempTextY}" font-family="Arial, sans-serif" font-size="22" fill="#FFFFFF" text-anchor="middle">${printerData.bedTemp}°C</text>`);
+
+    const svgString = `<svg xmlns="http://w3.org" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgParts.join("")}</svg>`;
 
     try {
-        const imageBuffer = canvas.toBuffer("image/png");
-        const base64Image = imageBuffer.toString("base64");
+        const base64Svg = Buffer.from(svgString, "utf8").toString("base64");
 
         key.style.showImage = true;
         key.style.showIcon = false;
         key.style.showTitle = false;
         key.style.bgColor = "#000";
         key.style.borderWidth = 0;
-        key.style.image = `data:image/png;base64,${base64Image}`;
+        key.style.image = `data:image/svg+xml;base64,${base64Svg}`;
 
         plugin.draw(serialNumber, key, "draw");
     } catch (encodeError) {
-        logger.error("Error encoding canvas to buffer:", encodeError);
+        logger.error("Error encoding SVG:", encodeError);
     }
-}
-
-function drawStaticButton(ctx, x, y, w, h, text) {
-    ctx.fillStyle = "#212121";
-    fillRoundRect(ctx, x, y, w, h, 8);
-    ctx.fillStyle = "#FFF";
-    ctx.font = "22px Arial";
-    ctx.textAlign = "center";
-    const trimText = truncateText(ctx, text, w);
-    ctx.fillText(trimText, x + (w / 2), h - 20 + padding);
-}
-
-function fillRoundRect(ctx, x, y, width, height, radius) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.arcTo(x + width, y, x + width, y + height, radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.arcTo(x + width, y + height, x, y + height, radius);
-    ctx.lineTo(x + radius, y + height);
-    ctx.arcTo(x, y + height, x, y, radius);
-    ctx.lineTo(x, y + radius);
-    ctx.arcTo(x, y, x + radius, y, radius);
-    ctx.closePath();
-    ctx.fill();
-}
-
-function truncateText(ctx, text, maxWidth) {
-    if (!text) return "";
-    let width = ctx.measureText(text).width;
-    if (width <= maxWidth) return text;
-    
-    let truncated = text;
-    while (width > maxWidth && truncated.length > 0) {
-        truncated = truncated.slice(0, -1);
-        width = ctx.measureText(truncated + "...").width;
-    }
-    return truncated + "...";
 }
 
 plugin.on("plugin.alive", (payload) => {

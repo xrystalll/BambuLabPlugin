@@ -4,8 +4,8 @@ import terser from "@rollup/plugin-terser";
 import path from "node:path";
 import url from "node:url";
 import json from '@rollup/plugin-json';
-import { glob } from 'glob'
-import fs from 'node:fs';
+import { glob } from 'glob';
+
 const isWatching = !!process.env.ROLLUP_WATCH;
 const flexPlugin = "com.xrystalll.bambu.plugin";
 
@@ -29,9 +29,9 @@ const config = {
 			buildStart: function () {
 				this.addWatchFile(`${flexPlugin}/manifest.json`);
 				const vueFiles = glob.sync(`${flexPlugin}/ui/*.vue`);
-        vueFiles.forEach((file) => {
-            this.addWatchFile(file);
-        });
+				vueFiles.forEach((file) => {
+					this.addWatchFile(file);
+				});
 			},
 		},
 		nodeResolve({
@@ -40,41 +40,9 @@ const config = {
 			preferBuiltins: true
 		}),
 		commonjs(),
-		!isWatching && terser(),
-		{
-			name: "emit-module-package-file",
-			generateBundle() {
-				this.emitFile({ fileName: "package.json", source: `{ "type": "module" }`, type: "asset" });
-			}
-		},
-		{
-			name: "copy-package-json",
-			writeBundle: async () => {
-				try {
-					// Create package.json file with dependencies
-					const packageJson = {
-						"name": "backend",
-						"version": "1.0.0",
-						"private": true,
-						"dependencies": {
-							"canvas": "*"
-						}
-					};
-
-					// Ensure target directory exists
-					const packageJsonPath = path.join(flexPlugin, 'backend', 'package.json');
-					fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
-
-					console.log('Successfully generated package.json, please run npm install in the plugin directory');
-				} catch (err) {
-					console.error('Error generating package.json:', err);
-				}
-			}
-		}
+		!isWatching && terser()
 	],
 	external: [
-		// Exclude all native modules and node built-in modules
-		'canvas',
 		'fs', 'path',
 		/^node:/
 	]

@@ -8,15 +8,7 @@ on:
 jobs:
   build:
     permissions: write-all
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: win
-          - os: macos-latest
-            platform: mac
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Code checkout
@@ -36,18 +28,10 @@ jobs:
       - name: Build Plugin
         run: npm run build
 
-      - name: Install native dependencies into plugin backend
-        working-directory: com.xrystalll.bambu.plugin/backend
-        run: npm install --omit=dev
-
       - name: Pack Plugin
         run: npm run plugin:pack
-
-      - name: Rename artifact for OS
-        shell: bash
-        run: mv com.xrystalll.bambu.flexplugin com.xrystalll.bambu-${{ matrix.platform }}.flexplugin
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: com.xrystalll.bambu-${{ matrix.platform }}.flexplugin
+          files: com.xrystalll.bambu.flexplugin
