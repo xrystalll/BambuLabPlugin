@@ -101,7 +101,7 @@ function startMqtt() {
                 parseBambuData(data.print);
 
                 if (device.keys && Array.isArray(device.keys) && device.keys.length > 0) {
-                    const key = device.keys;
+                    const key = device.keys[0];
 
                     if (key && key.cid === "com.xrystalll.bambu.monitor") {
                         renderBambuWidget(device.serialNumber, key);
@@ -128,7 +128,7 @@ function checkWidgetVisibility() {
     const hasActiveWidget = device.keys && Array.isArray(device.keys) && device.keys.length > 0;
 
     if (hasActiveWidget) {
-        const key = device.keys;
+        const key = device.keys[0];
         if (key && key.cid === "com.xrystalll.bambu.monitor") {
             startMqtt();
             renderBambuWidget(device.serialNumber, key);
@@ -139,19 +139,28 @@ function checkWidgetVisibility() {
     stopMqtt();
 }
 
-function safeLoadImageBase64(filePath) {
-    try {
-        if (existsSync(filePath)) {
-            const buffer = readFileSync(filePath);
-            return `data:image/png;base64,${buffer.toString("base64")}`;
-        } else {
-            logger.error(`Image asset not found at path: ${filePath}`);
-            return null;
+function safeLoadImageBase64(fileName) {
+    const possiblePaths = [
+        resolve(join(resourcesPath, fileName)),
+        resolve(__dirname, "..", "resources", fileName),
+        resolve(__dirname, "..", fileName)
+    ];
+
+    for (const filePath of possiblePaths) {
+        try {
+            if (existsSync(filePath)) {
+                const buffer = readFileSync(filePath);
+                const cleanBase64 = buffer.toString("base64").replace(/[\r\n]/g, "");
+                logger.info(`Loaded icon from: ${filePath}`);
+                return `data:image/png;base64,${cleanBase64}`;
+            }
+        } catch (err) {
+            logger.error(`Failed to read image at ${filePath}:`, err);
         }
-    } catch (err) {
-        logger.error(`Failed to load image: ${filePath}`, err);
-        return null;
     }
+
+    logger.error(`Image asset not found in any path: ${fileName}`);
+    return null;
 }
 
 async function startPlugin() {
@@ -160,13 +169,9 @@ async function startPlugin() {
     try {
         loadUserConfiguration();
 
-        const extruderPath = resolve(join(resourcesPath, "extruder.png"));
-        const heatbedPath = resolve(join(resourcesPath, "heatbed.png"));
-        const bambulogoPath = resolve(join(resourcesPath, "bambulab.png"));
-
-        imgExtruderBase64 = safeLoadImageBase64(extruderPath);
-        imgHeatBedBase64 = safeLoadImageBase64(heatbedPath);
-        imgBambulabBase64 = safeLoadImageBase64(bambulogoPath);
+        imgExtruderBase64 = safeLoadImageBase64("extruder.png");
+        imgHeatBedBase64 = safeLoadImageBase64("heatbed.png");
+        imgBambulabBase64 = safeLoadImageBase64("bambulab.png");
 
         isAssetsLoaded = true;
         checkWidgetVisibility();
@@ -337,9 +342,12 @@ function renderBambuWidget(serialNumber, key) {
     svgParts.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#000000" />`);
 
     svgParts.push(`<rect x="${padding}" y="${padding}" width="${btnH}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
-    if (imgBambulabBase64) {
-        svgParts.push(`<image href="${imgBambulabBase64}" x="11" y="11" width="${icSize}" height="${icSize}" />`);
-    }
+
+    svgParts.push(`
+        <g transform="translate(11, 11) scale(1.5833)" fill="#00AE42">
+            <path d="M12.662 24V8.959l8.535 3.369V24zm-9.859-.003v-7.521l8.534-3.371-.001 10.892zM2.803 0h8.533l.001 11.672-8.534 3.369zm9.859 0h8.535v10.892l-8.535-3.371z"/>
+        </g>
+    `);
 
     if (printerData.status === "Idle") {
         const statusStr = escapeXml(truncateTextApprox(printerData.status, centerContainerMaxWidth, 24));
@@ -376,18 +384,39 @@ function renderBambuWidget(serialNumber, key) {
     const tempTextY = btnH - 20 + padding;
 
     svgParts.push(`<rect x="${nozzleBtnX}" y="${padding}" width="${btnW}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
-    if (imgExtruderBase64) {
-        svgParts.push(`<image href="${imgExtruderBase64}" x="${nozzleBtnX + 8}" y="${height / 2 - icSize / 2}" width="${icSize}" height="${icSize}" />`);
-    }
+
+    // Extruder icon
+    const extX = nozzleBtnX + 8;
+    const extY = height / 2 - icSize / 2;
+    svgParts.push(`
+    <g transform="translate(${extX}, ${extY})" fill="none" stroke="#E0E0E0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6 H26 V18 H12 Z" />
+        <line x1="12" y1="10" x2="26" y2="10" />
+        <line x1="12" y1="14" x2="26" y2="14" />
+        <path d="M14 18 H24 V24 L20.5 30 H17.5 L14 24 Z" />
+        <line x1="19" y1="30" x2="19" y2="33" stroke="#E0E0E0" />
+    </g>
+    `);
+
     svgParts.push(`<text x="${nozzleBtnX + btnW / 2 + 16}" y="${tempTextY}" font-family="Arial, sans-serif" font-size="22" fill="#FFFFFF" text-anchor="middle">${printerData.nozzleTemp}°C</text>`);
 
     svgParts.push(`<rect x="${bedBtnX}" y="${padding}" width="${btnW}" height="${btnH}" rx="8" ry="8" fill="#212121" />`);
-    if (imgHeatBedBase64) {
-        svgParts.push(`<image href="${imgHeatBedBase64}" x="${bedBtnX + 8}" y="${height / 2 - icSize / 2}" width="${icSize}" height="${icSize}" />`);
-    }
+
+    // Heat bed icon
+    const bedX = bedBtnX + 8;
+    const bedY = height / 2 - icSize / 2;
+    svgParts.push(`
+    <g transform="translate(${bedX}, ${bedY})" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 19 C9.5 15, 14.5 11, 12 6" stroke="#E0E0E0" />
+        <path d="M19 19 C16.5 15, 21.5 11, 19 6" stroke="#E0E0E0" />
+        <path d="M26 19 C23.5 15, 28.5 11, 26 6" stroke="#E0E0E0" />
+        <rect x="6" y="23" width="26" height="5" stroke="#E0E0E0" />
+    </g>
+    `);
+
     svgParts.push(`<text x="${bedBtnX + btnW / 2 + 16}" y="${tempTextY}" font-family="Arial, sans-serif" font-size="22" fill="#FFFFFF" text-anchor="middle">${printerData.bedTemp}°C</text>`);
 
-    const svgString = `<svg xmlns="http://w3.org" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgParts.join("")}</svg>`;
+    const svgString = `<svg xmlns="http://w3.org" xmlns:xlink="http://w3.org" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${svgParts.join("")}</svg>`;
 
     try {
         const base64Svg = Buffer.from(svgString, "utf8").toString("base64");
