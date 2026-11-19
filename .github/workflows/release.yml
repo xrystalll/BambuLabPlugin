@@ -1,4 +1,3 @@
-
 name: Pack files and release
 
 on:
@@ -9,14 +8,22 @@ on:
 jobs:
   build:
     permissions: write-all
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Code checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -31,14 +38,16 @@ jobs:
 
       - name: Install native dependencies into plugin backend
         working-directory: com.xrystalll.bambu.plugin/backend
-        run: |
-          npm init -y
-          npm install canvas@^3.2.3 --omit=dev
+        run: npm install --omit=dev
 
       - name: Pack Plugin
         run: npm run plugin:pack
 
+      - name: Rename artifact for OS
+        shell: bash
+        run: mv com.xrystalll.bambu.flexplugin com.xrystalll.bambu-${{ matrix.platform }}.flexplugin
+
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: com.xrystalll.bambu.flexplugin
+          files: com.xrystalll.bambu-${{ matrix.platform }}.flexplugin
